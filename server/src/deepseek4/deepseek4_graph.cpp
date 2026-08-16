@@ -3764,11 +3764,7 @@ static HcPreResult cpu_hc_pre(const float * hc_state, const uint16_t * fn_data,
 }
 
 static bool ds4_hc_cuda_enabled() {
-#if defined(DFLASH27B_BACKEND_CUDA) || defined(DFLASH27B_BACKEND_HIP) || defined(GGML_USE_HIP)
-    return true;
-#else
     return false;
-#endif
 }
 
 static HcPreResult hc_pre_auto(const float * hc_state,
