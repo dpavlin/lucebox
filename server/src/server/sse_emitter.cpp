@@ -664,12 +664,10 @@ std::vector<std::string> SseEmitter::emit_finish(int completion_tokens,
             accumulated_content_ += tool_buffer_;
             emit_content_delta(out, tool_buffer_);
         } else {
-            // Tool syntax was detected but no valid call parsed. Do not leak
-            // malformed/incomplete XML back to the user as assistant text.
             std::fprintf(stderr,
-                "[server] tool_call parse failed; suppressing buffered tool text "
+                "[server] tool_call parse failed; suppressing buffered tool text: '%s' "
                 "request_id=%s format=%d bytes=%zu\n",
-                request_id_.c_str(), (int)format_, tool_buffer_.size());
+                tool_buffer_.c_str(), request_id_.c_str(), (int)format_, tool_buffer_.size());
         }
     }
 

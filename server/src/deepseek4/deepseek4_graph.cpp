@@ -3764,7 +3764,7 @@ static HcPreResult cpu_hc_pre(const float * hc_state, const uint16_t * fn_data,
 }
 
 static bool ds4_hc_cuda_enabled() {
-#if defined(DFLASH27B_BACKEND_CUDA)
+#if defined(DFLASH27B_BACKEND_CUDA) || defined(DFLASH27B_BACKEND_HIP) || defined(GGML_USE_HIP)
     return true;
 #else
     return false;
@@ -3778,7 +3778,7 @@ static HcPreResult hc_pre_auto(const float * hc_state,
                                int n_hc,
                                int sinkhorn_iters,
                                float hc_eps) {
-#if defined(DFLASH27B_BACKEND_CUDA)
+#if defined(DFLASH27B_BACKEND_CUDA) || defined(DFLASH27B_BACKEND_HIP) || defined(GGML_USE_HIP)
     if (ds4_hc_cuda_enabled() && fn_tensor && fn_tensor->data) {
         float mix[24];
         if (deepseek4_cuda_hc_pre_mix(hc_state, fn_tensor->data,
@@ -3810,7 +3810,7 @@ static void hc_pre_auto_into(float * working,
                              float * flat,
                              float * mix_scratch,
                              bool serial_fn) {
-#if defined(DFLASH27B_BACKEND_CUDA)
+#if defined(DFLASH27B_BACKEND_CUDA) || defined(DFLASH27B_BACKEND_HIP) || defined(GGML_USE_HIP)
     if (ds4_hc_cuda_enabled() && fn_tensor && fn_tensor->data) {
         float mix[24];
         if (deepseek4_cuda_hc_pre_mix(hc_state, fn_tensor->data,
