@@ -370,10 +370,27 @@ std::string render_chat_template(
 
         result = "<｜begin▁of▁sentence｜>";
         if (has_tools) {
-            // Tool schema rendering is not implemented for the native DSML
-            // path yet; keep the JSON visible in the system prefix rather than
-            // silently dropping it.
-            result += tools_json;
+            result += "### Tools\n\n"
+                      "You may call functions to assist with the user query. "
+                      "All available function signatures are listed below:\n"
+                      "<available_tools>\n";
+            try {
+                const nlohmann::json tools = nlohmann::json::parse(tools_json);
+                for (const auto & t : tools) {
+                    result += t.dump();
+                    result += "\n";
+                }
+            } catch (const std::exception &) {
+                result += tools_json;
+                result += "\n";
+            }
+            result += "</available_tools>\n\n"
+                      "For each function call, you MUST return a single JSON object "
+                      "within '<function_call>' and '</function_call>' tags, "
+                      "containing the function name and arguments, like this:\n"
+                      "<function_call>\n"
+                      "{\"name\": \"function_name\", \"arguments\": {\"param_name\": \"value\"}}\n"
+                      "</function_call>\n\n";
             if (has_system) result += "\n\n";
         }
         result += system_content;
