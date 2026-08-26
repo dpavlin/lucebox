@@ -595,7 +595,8 @@ static ggml_tensor * build_tail_rope_3d(ggml_context * ctx,
                                          float attn_factor,
                                          float beta_fast,
                                          float beta_slow,
-                                         int n_ctx_orig) {
+                                         int n_ctx_orig,
+                                         bool inverse = false) {
     const int n_nope = head_dim - n_rot;
     // Split: nope [n_nope, n_heads, n_tokens], tail [n_rot, n_heads, n_tokens]
     ggml_tensor * nope = ggml_view_3d(ctx, x, n_nope, n_heads, n_tokens,
@@ -607,10 +608,17 @@ static ggml_tensor * build_tail_rope_3d(ggml_context * ctx,
     tail = ggml_cont(ctx, tail);
     // Apply rope to the contiguous tail: [n_rot, n_heads, n_tokens]
     // DS4 uses standard sequential pairs (i, i+1), which is GGML_ROPE_TYPE_NORMAL
-    tail = ggml_rope_ext(ctx, tail, pos, nullptr,
-                         n_rot, GGML_ROPE_TYPE_NORMAL, n_ctx_orig,
-                         freq_base, freq_scale,
-                         ext_factor, attn_factor, beta_fast, beta_slow);
+    if (inverse) {
+        tail = ggml_rope_ext_back(ctx, tail, pos, nullptr,
+                                  n_rot, GGML_ROPE_TYPE_NORMAL, n_ctx_orig,
+                                  freq_base, freq_scale,
+                                  ext_factor, attn_factor, beta_fast, beta_slow);
+    } else {
+        tail = ggml_rope_ext(ctx, tail, pos, nullptr,
+                             n_rot, GGML_ROPE_TYPE_NORMAL, n_ctx_orig,
+                             freq_base, freq_scale,
+                             ext_factor, attn_factor, beta_fast, beta_slow);
+    }
     // Concat nope + tail along dim 0 → [head_dim, n_heads, n_tokens]
     return ggml_concat(ctx, ggml_cont(ctx, nope), tail, 0);
 }
@@ -2343,19 +2351,11 @@ static ggml_tensor * build_mla_attention(
 
     // ── Inverse tail RoPE on attention output ───────────────────────
     if (!inverse_rope_fused) {
-        ggml_tensor * neg_pos = cached_inputs ? cached_inputs->neg_pos : nullptr;
-        if (!neg_pos) {
-            neg_pos = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, n_tokens);
-            ggml_set_input(neg_pos);
-            std::vector<int32_t> neg_vals(n_tokens);
-            for (int i = 0; i < n_tokens; i++) neg_vals[i] = -(kv_start + i);
-            i32_array_inputs.push_back({neg_pos, std::move(neg_vals)});
-        }
         context = build_tail_rope_3d(
-            ctx, context, neg_pos, n_rot, head_dim, n_head, n_tokens,
+            ctx, context, rope_pos, n_rot, head_dim, n_head, n_tokens,
             rope_freq, rope_scale, rope_ext, rope_attn,
             w.rope_yarn_beta_fast, w.rope_yarn_beta_slow,
-            rope_n_ctx_orig);
+            rope_n_ctx_orig, /*inverse=*/true);
     }
 
     // Flatten to [head_dim*n_head, n_tokens] for output projection
@@ -9027,9 +9027,10 @@ static ggml_tensor * build_dspark_attention(
     ggml_tensor * kv_T = ggml_cont(ctx, ggml_transpose(ctx, kv_attn));  // [n_attn, head_dim]
     ggml_tensor * context = ggml_mul_mat(ctx, kv_T, probs);             // [head_dim, n_head*block]
     context = ggml_reshape_3d(ctx, context, head_dim, n_head, block);
-    context = build_tail_rope_3d(ctx, context, neg_block, n_rot, head_dim, n_head, block,
+    context = build_tail_rope_3d(ctx, context, pos_block, n_rot, head_dim, n_head, block,
                                  rope_freq, rope_scale, rope_ext, rope_attn,
-                                 w.rope_yarn_beta_fast, w.rope_yarn_beta_slow, rope_orig);
+                                 w.rope_yarn_beta_fast, w.rope_yarn_beta_slow, rope_orig,
+                                 /*inverse=*/true);
     ggml_tensor * attn_out = ggml_reshape_2d(ctx, context, head_dim * n_head, block);
     const int group_dim = head_dim * (n_head / n_out_group);
     attn_out = ggml_reshape_3d(ctx, attn_out, group_dim, n_out_group, block);
