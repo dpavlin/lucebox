@@ -37,8 +37,8 @@ int main(int argc, char ** argv) {
     }
 
     std::vector<std::string> test_prompts = {
-        "Repeat after me: rfid501.go",
-        "Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go"
+        "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>",
+        "<｜User｜>Read file /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>I will call the read tool.\n<｜DSML｜tool_calls>\n<｜DSML｜invoke name=\"read\">\n<｜DSML｜parameter name=\"path\" string=\"true\">/home/dpavlin/koha-rfid-go/internal/rfid/"
     };
 
     for (const auto & prompt : test_prompts) {
