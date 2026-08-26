@@ -87,7 +87,7 @@ int main(int argc, char ** argv) {
         req.prompt = prompt_tokens;
         req.n_gen = 45;
         req.sampler.temp = tc.temp;
-        req.sampler.penalty_repeat = tc.rep_penalty;
+        req.sampler.rep_pen = tc.rep_penalty;
 
         DaemonIO io;
         GenerateResult res = backend.generate(req, io);
