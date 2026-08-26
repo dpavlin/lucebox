@@ -67,8 +67,8 @@ int main(int argc, char ** argv) {
     };
 
     std::vector<TestCase> test_cases = {
-        {"Natural Thinking (No forced </think>)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜>", 0.0f, 1.0f},
-        {"Forced Direct (Forced </think>)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.0f}
+        {"llama-cli Raw Prompt (No Chat Template)", "Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go", 0.0f, 1.0f},
+        {"lucebox Chat Template (<｜User｜>...<｜Assistant｜><think>)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜><think>", 0.0f, 1.0f}
     };
 
     for (const auto & tc : test_cases) {
