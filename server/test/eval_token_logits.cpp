@@ -1,6 +1,6 @@
 #include "deepseek4/deepseek4_backend.h"
 #include "server/tokenizer.h"
-#include "common/daemon_io.h"
+#include "common/model_backend.h"
 #include "server/chat_template.h"
 #include <cstdio>
 #include <vector>
