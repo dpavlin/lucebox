@@ -1496,6 +1496,25 @@ if(DFLASH27B_TESTS)
         endif()
     endif()
 
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/eval_token_logits.cpp")
+        add_executable(eval_token_logits test/eval_token_logits.cpp)
+        target_include_directories(eval_token_logits PRIVATE ${DFLASH27B_SRC_INCLUDE_DIRS})
+        if(DFLASH27B_GPU_BACKEND STREQUAL "hip")
+            target_compile_definitions(eval_token_logits PRIVATE DFLASH27B_BACKEND_HIP=1 GGML_USE_HIP)
+        else()
+            target_compile_definitions(eval_token_logits PRIVATE
+                DFLASH27B_BACKEND_CUDA=1
+                DFLASH27B_CUDA_MIN_SM=${_dflash_cuda_min_sm})
+        endif()
+        target_link_libraries(eval_token_logits PRIVATE dflash_common ggml ${DFLASH27B_GGML_BACKEND_TARGET})
+        if(DFLASH27B_GPU_BACKEND STREQUAL "cuda")
+            find_package(CUDAToolkit REQUIRED)
+            target_link_libraries(eval_token_logits PRIVATE CUDA::cudart)
+        else()
+            target_link_libraries(eval_token_logits PRIVATE hip::host)
+        endif()
+    endif()
+
     # ─── Unit tests (no GPU, no model files) ────────────────────────────
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/test_moe_input_ready.cpp")
         add_executable(test_moe_input_ready test/test_moe_input_ready.cpp)

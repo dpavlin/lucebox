@@ -1114,6 +1114,19 @@ bool run_deepseek4_dspark_spec_decode(
 
         // Output tokens this step = accepted candidates + bonus.
         bool hit_eos = false;
+        if (std::getenv("DFLASH_DEBUG_LOGITS")) {
+            std::fprintf(stderr, "[debug-spec-step] step=%ld pos=%d q=%d acc=%d draft=[", steps, pos, q, accept);
+            for (int i = 0; i < q; i++) std::fprintf(stderr, "%d%s", draft_tok[i], i + 1 < q ? " " : "");
+            std::fprintf(stderr, "] tgt=[");
+            for (int i = 0; i < q; i++) std::fprintf(stderr, "%d%s", tgt_am[i], i + 1 < q ? " " : "");
+            std::fprintf(stderr, "] emitted=[");
+            for (int i = 1; i <= accept; i++) {
+                const int t = (i < accept) ? draft_tok[i] : bonus;
+                std::fprintf(stderr, "%d%s", t, i <= accept ? " " : "");
+            }
+            std::fprintf(stderr, "]\n");
+            std::fflush(stderr);
+        }
         for (int i = 1; i <= accept; i++) {
             const int t = (i < accept) ? draft_tok[i] : bonus;
             out_tokens.push_back(t);

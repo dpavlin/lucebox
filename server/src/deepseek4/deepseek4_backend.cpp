@@ -1115,6 +1115,9 @@ bool DeepSeek4Backend::init() {
             std::fprintf(stderr, "[deepseek4] DFLASH_DS4_SPEC set but DFLASH_DS4_DRAFT gguf missing\n");
         }
     }
+    if (env_flag_enabled("DFLASH_DEBUG_LOGITS")) {
+        std::fprintf(stderr, "[deepseek4] DFLASH_DEBUG_LOGITS enabled\n");
+    }
     return true;
 }
 
@@ -2295,6 +2298,24 @@ bool DeepSeek4Backend::do_decode(int committed, int n_gen,
             }
         }
         if (timing) tel_acc.sample_us += elapsed_us(sample_t0, Clock::now());
+
+        if (env_flag_enabled("DFLASH_DEBUG_LOGITS")) {
+            std::vector<std::pair<float, int32_t>> topk;
+            for (int i = 0; i < (int)w_.n_vocab && i < (int)logits.size(); i++) {
+                topk.push_back({logits[i], i});
+            }
+            std::partial_sort(topk.begin(), topk.begin() + std::min((size_t)5, topk.size()), topk.end(),
+                              [](const auto & a, const auto & b) { return a.first > b.first; });
+            float logit_0 = (logits.size() > 18) ? logits[18] : 0.0f;
+            float logit_o = (logits.size() > 81) ? logits[81] : 0.0f;
+            std::fprintf(stderr, "[debug-logits] gen=%d pos=%d next=%d ('0'#18=%.3f, 'o'#81=%.3f, diff=%.3f) top5=[",
+                         generated, cache_.cur_pos, next_token, logit_0, logit_o, logit_o - logit_0);
+            for (size_t k = 0; k < 5 && k < topk.size(); k++) {
+                std::fprintf(stderr, "(id=%d, l=%.3f)%s", topk[k].second, topk[k].first, k + 1 < 5 ? ", " : "");
+            }
+            std::fprintf(stderr, "]\n");
+            std::fflush(stderr);
+        }
 
         // Budget hook: steer the tail of the window into the close sequence, then let the model
         // keep going. Runs before history.push_back so penalty history records what was

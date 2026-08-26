@@ -25,6 +25,16 @@ bool run_layer_split_ar_decode(
         if ((int)prefill_last_logits.size() != vocab) return false;
         last_tok = sample_logits(prefill_last_logits.data(), vocab, sampler,
                                  history, rng);
+    } else if (!prefill_last_logits.empty()) {
+        float max_val = prefill_last_logits[0];
+        int max_idx = 0;
+        for (int i = 1; i < (int)prefill_last_logits.size(); i++) {
+            if (prefill_last_logits[i] > max_val) {
+                max_val = prefill_last_logits[i];
+                max_idx = i;
+            }
+        }
+        last_tok = max_idx;
     }
 
     out_tokens.push_back(last_tok);
@@ -45,14 +55,39 @@ bool run_layer_split_ar_decode(
         std::vector<int32_t> one(1, last_tok);
         int next_tok = -1;
         logits_buf.clear();
-        if (!forward_one(one, committed, next_tok,
-                         sampler.needs_logit_processing() ? &logits_buf : nullptr)) {
+        if (!forward_one(one, committed, next_tok, &logits_buf)) {
             return false;
         }
         if (sampler.needs_logit_processing()) {
             if ((int)logits_buf.size() != vocab) return false;
             next_tok = sample_logits(logits_buf.data(), vocab, sampler,
                                      history, rng);
+        } else if (!logits_buf.empty()) {
+            float max_val = logits_buf[0];
+            int max_idx = 0;
+            for (int j = 1; j < (int)logits_buf.size(); j++) {
+                if (logits_buf[j] > max_val) {
+                    max_val = logits_buf[j];
+                    max_idx = j;
+                }
+            }
+            next_tok = max_idx;
+        }
+
+        if (std::getenv("DFLASH_DEBUG_LOGITS") && !logits_buf.empty()) {
+            float logit_0 = (logits_buf.size() > 18) ? logits_buf[18] : 0.0f;
+            float logit_o = (logits_buf.size() > 81) ? logits_buf[81] : 0.0f;
+            std::vector<std::pair<float, int32_t>> topk;
+            for (int k = 0; k < (int)logits_buf.size(); k++) topk.push_back({logits_buf[k], k});
+            std::partial_sort(topk.begin(), topk.begin() + std::min((size_t)5, topk.size()), topk.end(),
+                              [](const auto & a, const auto & b) { return a.first > b.first; });
+            std::fprintf(stderr, "[debug-logits] i=%d pos=%d next=%d ('0'#18=%.3f, 'o'#81=%.3f, diff=%.3f) top5=[",
+                         i, committed, next_tok, logit_0, logit_o, logit_o - logit_0);
+            for (size_t k = 0; k < 5 && k < topk.size(); k++) {
+                std::fprintf(stderr, "(id=%d, l=%.3f)%s", topk[k].second, topk[k].first, k + 1 < 5 ? ", " : "");
+            }
+            std::fprintf(stderr, "]\n");
+            std::fflush(stderr);
         }
 
         last_tok = next_tok;
