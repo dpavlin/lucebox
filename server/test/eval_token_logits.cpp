@@ -87,14 +87,22 @@ int main(int argc, char ** argv) {
         req.prompt = prompt_tokens;
         req.n_gen = 45;
         req.sampler.temp = tc.temp;
-        req.sampler.rep_pen = tc.rep_penalty;
-
         DaemonIO io;
         GenerateResult res = backend.generate(req, io);
         if (!res.ok()) {
             std::printf("Generate failed: %s\n", std::string(res.error_detail()).c_str());
             continue;
         }
+
+        std::string out_text = tokenizer.decode(res.tokens);
+        std::printf("Output (%zu tokens): %s\n", res.tokens.size(), out_text.c_str());
+        std::printf("Token sequence: [");
+        for (size_t i = 0; i < res.tokens.size(); i++) {
+            std::string t_str = tokenizer.decode({res.tokens[i]});
+            std::printf("%d ('%s')%s", res.tokens[i], t_str.c_str(), i + 1 < res.tokens.size() ? ", " : "");
+        }
+        std::printf("]\n");
+    }
 
     std::vector<std::string> patterns = {
         "rfid501.go", "rfid5o1.go",
