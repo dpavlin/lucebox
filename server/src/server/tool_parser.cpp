@@ -969,9 +969,9 @@ ToolParseResult parse_tool_calls(const std::string & text, const json & tools) {
     // </｜DSML｜tool_calls>
     {
         static const std::regex re_dsml_invoke(
-            R"(<(?:｜|\?|\|)?DSML(?:｜|\?|\|)?invoke\s+name\s*=\s*"([^"]+)"\s*>([\s\S]*?)</(?:｜|\?|\|)?DSML(?:｜|\?|\|)?invoke>)");
+            R"dsml(<(?:｜|\?|\|)?DSML(?:｜|\?|\|)?invoke\s+name\s*=\s*"([^"]+)"\s*>([\s\S]*?)</(?:｜|\?|\|)?DSML(?:｜|\?|\|)?invoke>)dsml");
         static const std::regex re_dsml_param(
-            R"(<(?:｜|\?|\|)?DSML(?:｜|\?|\|)?parameter\s+name\s*=\s*"([^"]+)"(?:\s+string\s*=\s*"([^"]*)")?\s*>([\s\S]*?)</(?:｜|\?|\|)?DSML(?:｜|\?|\|)?parameter>)");
+            R"dsml(<(?:｜|\?|\|)?DSML(?:｜|\?|\|)?parameter\s+name\s*=\s*"([^"]+)"(?:\s+string\s*=\s*"([^"]*)")?\s*>([\s\S]*?)</(?:｜|\?|\|)?DSML(?:｜|\?|\|)?parameter>)dsml");
 
         auto begin = std::sregex_iterator(text.begin(), text.end(), re_dsml_invoke);
         auto end = std::sregex_iterator();
@@ -1005,8 +1005,8 @@ ToolParseResult parse_tool_calls(const std::string & text, const json & tools) {
             size_t call_end = pos + it->length();
 
             // Expand to include surrounding <｜DSML｜tool_calls> and </｜DSML｜tool_calls> if adjacent
-            static const std::regex re_dsml_open(R"(<(?:｜|\?|\|)?DSML(?:｜|\?|\|)?tool_calls>\s*)");
-            static const std::regex re_dsml_close(R"(\s*</(?:｜|\?|\|)?DSML(?:｜|\?|\|)?tool_calls>)");
+            static const std::regex re_dsml_open(R"dsml(<(?:｜|\?|\|)?DSML(?:｜|\?|\|)?tool_calls>\s*)dsml");
+            static const std::regex re_dsml_close(R"dsml(\s*</(?:｜|\?|\|)?DSML(?:｜|\?|\|)?tool_calls>)dsml");
 
             std::smatch m_open;
             std::string prefix = text.substr(0, call_start);
