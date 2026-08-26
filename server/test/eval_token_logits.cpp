@@ -36,17 +36,46 @@ int main(int argc, char ** argv) {
         return 3;
     }
 
-    std::vector<std::string> test_prompts = {
-        "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>",
-        "<｜User｜>Read file /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>I will call the read tool.\n<｜DSML｜tool_calls>\n<｜DSML｜invoke name=\"read\">\n<｜DSML｜parameter name=\"path\" string=\"true\">/home/dpavlin/koha-rfid-go/internal/rfid/"
+    struct TestCase {
+        std::string name;
+        std::string prompt;
+        float temp = 0.0f;
+        float rep_penalty = 1.0f;
     };
 
-    for (const auto & prompt : test_prompts) {
+    std::vector<TestCase> test_cases = {
+        // 1. Directory Stem & Path Repetition Variations
+        {"Baseline (Full Path)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.0f},
+        {"Different Dir (device/rfid501)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/device/rfid501.go<｜Assistant｜></think>", 0.0f, 1.0f},
+        {"Different Stem (rfid/item501)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/item501.go<｜Assistant｜></think>", 0.0f, 1.0f},
+        {"Different Digit (rfid502)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid502.go<｜Assistant｜></think>", 0.0f, 1.0f},
+        {"Double Zero (rfid500)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid500.go<｜Assistant｜></think>", 0.0f, 1.0f},
+        {"Zero at End (rfid510)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid510.go<｜Assistant｜></think>", 0.0f, 1.0f},
+        {"Filename Only (rfid501.go)", "<｜User｜>Repeat after me: rfid501.go<｜Assistant｜></think>", 0.0f, 1.0f},
+
+        // 2. Quoting & Delimiters
+        {"Double Quotes", "<｜User｜>Repeat after me: \"/home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go\"<｜Assistant｜></think>", 0.0f, 1.0f},
+        {"Backticks", "<｜User｜>Repeat after me: `/home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go`<｜Assistant｜></think>", 0.0f, 1.0f},
+        {"Single Quotes", "<｜User｜>Repeat after me: '/home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go'<｜Assistant｜></think>", 0.0f, 1.0f},
+
+        // 3. System Directives & Instruction Framing
+        {"System Exact-Copy Directive", "<｜begin▁of▁sentence｜>You are a literal copy engine. Output exact characters and digits verbatim without alteration.<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.0f},
+        {"Explicit Digit Directive", "<｜User｜>Repeat the path /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go exactly (it contains digit zero '0', not letter 'o'):<｜Assistant｜></think>", 0.0f, 1.0f},
+        {"Character By Character Directive", "<｜User｜>Repeat after me character by character: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.0f},
+
+        // 4. Repetition Penalty Variations
+        {"Repetition Penalty 1.05", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.05f},
+        {"Repetition Penalty 1.10", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.10f},
+        {"Repetition Penalty 1.20", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.20f}
+    };
+
+    for (const auto & tc : test_cases) {
         std::printf("\n=======================================================\n");
-        std::printf("PROMPT: %s\n", prompt.c_str());
+        std::printf("TEST CASE: %s (temp=%.2f, rep_penalty=%.2f)\n", tc.name.c_str(), tc.temp, tc.rep_penalty);
+        std::printf("PROMPT: %s\n", tc.prompt.c_str());
         std::printf("=======================================================\n");
 
-        std::vector<int32_t> prompt_tokens = tokenizer.encode(prompt);
+        std::vector<int32_t> prompt_tokens = tokenizer.encode(tc.prompt);
 
         std::printf("Prompt tokens (%zu): [", prompt_tokens.size());
         for (size_t i = 0; i < prompt_tokens.size(); i++) {
@@ -56,8 +85,9 @@ int main(int argc, char ** argv) {
 
         GenerateRequest req;
         req.prompt = prompt_tokens;
-        req.n_gen = 60;
-        req.sampler.temp = 0.0f;
+        req.n_gen = 45;
+        req.sampler.temp = tc.temp;
+        req.sampler.penalty_repeat = tc.rep_penalty;
 
         DaemonIO io;
         GenerateResult res = backend.generate(req, io);
