@@ -67,29 +67,8 @@ int main(int argc, char ** argv) {
     };
 
     std::vector<TestCase> test_cases = {
-        // 1. Directory Stem & Path Repetition Variations
-        {"Baseline (Full Path)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.0f},
-        {"Different Dir (device/rfid501)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/device/rfid501.go<｜Assistant｜></think>", 0.0f, 1.0f},
-        {"Different Stem (rfid/item501)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/item501.go<｜Assistant｜></think>", 0.0f, 1.0f},
-        {"Different Digit (rfid502)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid502.go<｜Assistant｜></think>", 0.0f, 1.0f},
-        {"Double Zero (rfid500)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid500.go<｜Assistant｜></think>", 0.0f, 1.0f},
-        {"Zero at End (rfid510)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid510.go<｜Assistant｜></think>", 0.0f, 1.0f},
-        {"Filename Only (rfid501.go)", "<｜User｜>Repeat after me: rfid501.go<｜Assistant｜></think>", 0.0f, 1.0f},
-
-        // 2. Quoting & Delimiters
-        {"Double Quotes", "<｜User｜>Repeat after me: \"/home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go\"<｜Assistant｜></think>", 0.0f, 1.0f},
-        {"Backticks", "<｜User｜>Repeat after me: `/home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go`<｜Assistant｜></think>", 0.0f, 1.0f},
-        {"Single Quotes", "<｜User｜>Repeat after me: '/home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go'<｜Assistant｜></think>", 0.0f, 1.0f},
-
-        // 3. System Directives & Instruction Framing
-        {"System Exact-Copy Directive", "<｜begin▁of▁sentence｜>You are a literal copy engine. Output exact characters and digits verbatim without alteration.<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.0f},
-        {"Explicit Digit Directive", "<｜User｜>Repeat the path /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go exactly (it contains digit zero '0', not letter 'o'):<｜Assistant｜></think>", 0.0f, 1.0f},
-        {"Character By Character Directive", "<｜User｜>Repeat after me character by character: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.0f},
-
-        // 4. Repetition Penalty Variations
-        {"Repetition Penalty 1.05", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.05f},
-        {"Repetition Penalty 1.10", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.10f},
-        {"Repetition Penalty 1.20", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.20f}
+        {"Natural Thinking (No forced </think>)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜>", 0.0f, 1.0f},
+        {"Forced Direct (Forced </think>)", "<｜User｜>Repeat after me: /home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go<｜Assistant｜></think>", 0.0f, 1.0f}
     };
 
     for (const auto & tc : test_cases) {
@@ -108,7 +87,7 @@ int main(int argc, char ** argv) {
 
         GenerateRequest req;
         req.prompt = prompt_tokens;
-        req.n_gen = 45;
+        req.n_gen = 300;
         req.sampler.temp = tc.temp;
         DaemonIO io;
         GenerateResult res = backend.generate(req, io);
