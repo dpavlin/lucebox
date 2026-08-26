@@ -44,6 +44,7 @@ int main(int argc, char ** argv) {
         std::printf("]\n");
     }
     std::printf("=======================================================\n\n");
+    std::fflush(stdout);
 
     std::fprintf(stderr, "[probe] Initializing DeepSeek4Backend\n");
     DeepSeek4BackendConfig cfg;
