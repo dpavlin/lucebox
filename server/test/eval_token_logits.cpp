@@ -56,7 +56,7 @@ int main(int argc, char ** argv) {
 
         GenerateRequest req;
         req.prompt = prompt_tokens;
-        req.n_gen = 25;
+        req.n_gen = 60;
         req.sampler.temp = 0.0f;
 
         DaemonIO io;
