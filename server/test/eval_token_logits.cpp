@@ -17,7 +17,11 @@ int main(int argc, char ** argv) {
     const char * model_path = argv[1];
 
     std::fprintf(stderr, "[probe] Loading tokenizer from %s\n", model_path);
-    Tokenizer tokenizer = Tokenizer::from_file(model_path);
+    Tokenizer tokenizer;
+    if (!tokenizer.load_from_gguf(model_path)) {
+        std::fprintf(stderr, "[probe] Failed to load tokenizer\n");
+        return 2;
+    }
 
     std::fprintf(stderr, "[probe] Initializing DeepSeek4Backend\n");
     DeepSeek4BackendConfig cfg;
