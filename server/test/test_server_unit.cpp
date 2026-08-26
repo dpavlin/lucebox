@@ -522,6 +522,26 @@ TEST_CASE(ServerUnitFixture, test_parse_tool_call_xml) {
     TEST_ASSERT(result.cleaned_text.find("<tool_call>") == std::string::npos);
 }
 
+TEST_CASE(ServerUnitFixture, test_parse_deepseek4_dsml_tool_calls) {
+    std::string text =
+        "I will read the file now.\n"
+        "<｜DSML｜tool_calls>\n"
+        "<｜DSML｜invoke name=\"read\">\n"
+        "<｜DSML｜parameter name=\"path\" string=\"true\">/home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go</｜DSML｜parameter>\n"
+        "</｜DSML｜invoke>\n"
+        "</｜DSML｜tool_calls>";
+    auto result = parse_tool_calls(text);
+    TEST_ASSERT(result.tool_calls.size() == 1);
+    if (!result.tool_calls.empty()) {
+        TEST_ASSERT(result.tool_calls[0].name == "read");
+        auto args = json::parse(result.tool_calls[0].arguments);
+        TEST_ASSERT(args.contains("path"));
+        TEST_ASSERT(args["path"] == "/home/dpavlin/koha-rfid-go/internal/rfid/rfid501.go");
+    }
+    TEST_ASSERT(result.cleaned_text.find("DSML") == std::string::npos);
+    TEST_ASSERT(result.cleaned_text.find("I will read the file now.") != std::string::npos);
+}
+
 TEST_CASE(ServerUnitFixture, test_parse_bare_function_xml) {
     std::string text =
         "<function=list_files>\n"

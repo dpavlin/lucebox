@@ -63,6 +63,9 @@ static const char FUNCNAME_OPEN[] = "<funcname>";
 static const char TOOL_CODE_OPEN[] = "<tool_code>";
 static const char ATTRIBUTE_PARAMETER_OPEN[] = "<parameter name=";
 static const char ARG_KEY_OPEN[] = "<arg_key>";
+static const char DSML_UTF8_OPEN[] = "<\xef\xbd\x9cDSML\xef\xbd\x9c";
+static const char DSML_ASCII_OPEN[] = "<|DSML|";
+static const char DSML_QMARK_OPEN[] = "<?DSML?";
 
 
 
@@ -116,6 +119,9 @@ bool find_tool_syntax_start(const std::string & text, const json & tools,
             text.compare(idx, sizeof(TOOL_CODE_OPEN) - 1, TOOL_CODE_OPEN) == 0 ||
             text.compare(idx, sizeof(ATTRIBUTE_PARAMETER_OPEN) - 1,
                          ATTRIBUTE_PARAMETER_OPEN) == 0 ||
+            text.compare(idx, sizeof(DSML_UTF8_OPEN) - 1, DSML_UTF8_OPEN) == 0 ||
+            text.compare(idx, sizeof(DSML_ASCII_OPEN) - 1, DSML_ASCII_OPEN) == 0 ||
+            text.compare(idx, sizeof(DSML_QMARK_OPEN) - 1, DSML_QMARK_OPEN) == 0 ||
             declared_tool_open_at(text, idx, tools)) {
             pos = idx;
             return true;
@@ -138,11 +144,12 @@ bool find_tool_syntax_start(const std::string & text, const json & tools,
 }
 
 size_t tool_syntax_holdback(const json & tools) {
-    // Longest fixed opener is `<parameter name=` (16 bytes).
+    // Longest fixed opener is `<parameter name=` (16 bytes) or DSML.
     size_t holdback = std::max({sizeof(ATTRIBUTE_PARAMETER_OPEN) - 2,
                                 sizeof(FUNCTION_CALLS_OPEN) - 2,
                                 sizeof(FUNCTION_CALL_OPEN) - 2,
-                                sizeof(BARE_FUNCTION_OPEN) - 2});
+                                sizeof(BARE_FUNCTION_OPEN) - 2,
+                                sizeof(DSML_UTF8_OPEN) - 2});
     if (!tools.is_array()) return holdback;
     for (const auto & tool : tools) {
         const std::string name = declared_tool_name(tool);
@@ -953,6 +960,71 @@ ToolParseResult parse_tool_calls(const std::string & text, const json & tools) {
         positioned_calls.emplace_back(start, std::move(tc));
         removals.push_back({start, end});
     };
+
+    // Pattern DSML (DeepSeek V4):
+    // <｜DSML｜tool_calls>
+    // <｜DSML｜invoke name="NAME">
+    // <｜DSML｜parameter name="KEY" string="true|false">VALUE</｜DSML｜parameter>
+    // </｜DSML｜invoke>
+    // </｜DSML｜tool_calls>
+    {
+        static const std::regex re_dsml_invoke(
+            R"(<(?:\xef\xbd\x9c|\?|\|)?DSML(?:\xef\xbd\x9c|\?|\|)?invoke\s+name\s*=\s*"([^"]+)"\s*>([\s\S]*?)</(?:\xef\xbd\x9c|\?|\|)?DSML(?:\xef\xbd\x9c|\?|\|)?invoke>)");
+        static const std::regex re_dsml_param(
+            R"(<(?:\xef\xbd\x9c|\?|\|)?DSML(?:\xef\xbd\x9c|\?|\|)?parameter\s+name\s*=\s*"([^"]+)"(?:\s+string\s*=\s*"([^"]*)")?\s*>([\s\S]*?)</(?:\xef\xbd\x9c|\?|\|)?DSML(?:\xef\xbd\x9c|\?|\|)?parameter>)");
+
+        auto begin = std::sregex_iterator(text.begin(), text.end(), re_dsml_invoke);
+        auto end = std::sregex_iterator();
+        for (auto it = begin; it != end; ++it) {
+            size_t pos = it->position();
+            if (overlaps(removals, pos)) continue;
+            std::string fn_name = (*it)[1].str();
+            std::string body = (*it)[2].str();
+
+            const json props = find_tool_properties(tools, fn_name);
+            json args = json::object();
+
+            auto p_begin = std::sregex_iterator(body.begin(), body.end(), re_dsml_param);
+            auto p_end = std::sregex_iterator();
+            for (auto pit = p_begin; pit != p_end; ++pit) {
+                std::string k = (*pit)[1].str();
+                std::string is_str = (*pit)[2].str();
+                std::string val = (*pit)[3].str();
+                if (is_str == "false") {
+                    try {
+                        args[k] = json::parse(val);
+                    } catch (...) {
+                        args[k] = convert_param_value(val, k, props);
+                    }
+                } else {
+                    args[k] = val;
+                }
+            }
+
+            size_t call_start = pos;
+            size_t call_end = pos + it->length();
+
+            // Expand to include surrounding <｜DSML｜tool_calls> and </｜DSML｜tool_calls> if adjacent
+            static const std::regex re_dsml_open(R"(<(?:\xef\xbd\x9c|\?|\|)?DSML(?:\xef\xbd\x9c|\?|\|)?tool_calls>\s*)");
+            static const std::regex re_dsml_close(R"(\s*</(?:\xef\xbd\x9c|\?|\|)?DSML(?:\xef\xbd\x9c|\?|\|)?tool_calls>)");
+
+            std::smatch m_open;
+            std::string prefix = text.substr(0, call_start);
+            if (std::regex_search(prefix, m_open, re_dsml_open)) {
+                size_t open_pos = m_open.position();
+                if (trim_ws(text.substr(open_pos + m_open.length(), call_start - (open_pos + m_open.length()))).empty()) {
+                    call_start = open_pos;
+                }
+            }
+            std::smatch m_close;
+            std::string suffix = text.substr(call_end);
+            if (std::regex_search(suffix, m_close, re_dsml_close) && m_close.position() == 0) {
+                call_end += m_close.length();
+            }
+
+            add_call(fn_name, args, call_start, call_end);
+        }
+    }
 
     // Pattern 8 (Laguna): <tool_call>NAME\n<arg_key>K</arg_key>\n
     // <arg_value>V</arg_value>...\n</tool_call>. Values are raw strings or
