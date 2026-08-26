@@ -63,7 +63,7 @@ static const char FUNCNAME_OPEN[] = "<funcname>";
 static const char TOOL_CODE_OPEN[] = "<tool_code>";
 static const char ATTRIBUTE_PARAMETER_OPEN[] = "<parameter name=";
 static const char ARG_KEY_OPEN[] = "<arg_key>";
-static const char DSML_UTF8_OPEN[] = "<\xef\xbd\x9cDSML\xef\xbd\x9c";
+static const char DSML_UTF8_OPEN[] = "<｜DSML｜";
 static const char DSML_ASCII_OPEN[] = "<|DSML|";
 static const char DSML_QMARK_OPEN[] = "<?DSML?";
 
@@ -969,9 +969,9 @@ ToolParseResult parse_tool_calls(const std::string & text, const json & tools) {
     // </｜DSML｜tool_calls>
     {
         static const std::regex re_dsml_invoke(
-            R"(<(?:\xef\xbd\x9c|\?|\|)?DSML(?:\xef\xbd\x9c|\?|\|)?invoke\s+name\s*=\s*"([^"]+)"\s*>([\s\S]*?)</(?:\xef\xbd\x9c|\?|\|)?DSML(?:\xef\xbd\x9c|\?|\|)?invoke>)");
+            R"(<(?:｜|\?|\|)?DSML(?:｜|\?|\|)?invoke\s+name\s*=\s*"([^"]+)"\s*>([\s\S]*?)</(?:｜|\?|\|)?DSML(?:｜|\?|\|)?invoke>)");
         static const std::regex re_dsml_param(
-            R"(<(?:\xef\xbd\x9c|\?|\|)?DSML(?:\xef\xbd\x9c|\?|\|)?parameter\s+name\s*=\s*"([^"]+)"(?:\s+string\s*=\s*"([^"]*)")?\s*>([\s\S]*?)</(?:\xef\xbd\x9c|\?|\|)?DSML(?:\xef\xbd\x9c|\?|\|)?parameter>)");
+            R"(<(?:｜|\?|\|)?DSML(?:｜|\?|\|)?parameter\s+name\s*=\s*"([^"]+)"(?:\s+string\s*=\s*"([^"]*)")?\s*>([\s\S]*?)</(?:｜|\?|\|)?DSML(?:｜|\?|\|)?parameter>)");
 
         auto begin = std::sregex_iterator(text.begin(), text.end(), re_dsml_invoke);
         auto end = std::sregex_iterator();
@@ -1005,8 +1005,8 @@ ToolParseResult parse_tool_calls(const std::string & text, const json & tools) {
             size_t call_end = pos + it->length();
 
             // Expand to include surrounding <｜DSML｜tool_calls> and </｜DSML｜tool_calls> if adjacent
-            static const std::regex re_dsml_open(R"(<(?:\xef\xbd\x9c|\?|\|)?DSML(?:\xef\xbd\x9c|\?|\|)?tool_calls>\s*)");
-            static const std::regex re_dsml_close(R"(\s*</(?:\xef\xbd\x9c|\?|\|)?DSML(?:\xef\xbd\x9c|\?|\|)?tool_calls>)");
+            static const std::regex re_dsml_open(R"(<(?:｜|\?|\|)?DSML(?:｜|\?|\|)?tool_calls>\s*)");
+            static const std::regex re_dsml_close(R"(\s*</(?:｜|\?|\|)?DSML(?:｜|\?|\|)?tool_calls>)");
 
             std::smatch m_open;
             std::string prefix = text.substr(0, call_start);
