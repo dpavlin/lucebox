@@ -365,8 +365,8 @@ std::string render_chat_template(
     }
 
     case ChatFormat::DEEPSEEK4: {
-        // DeepSeek V4 Flash native DSML renderer matching upstream GGUF chat template:
-        //   <｜begin▁of▁sentence｜>{system}## Tools\n...\n<｜User｜>{user}<｜Assistant｜><think>...</think>{content}<｜DSML｜tool_calls>...
+        // DeepSeek V4 Flash DSML renderer, matching the ds4 reference server:
+        //   <｜begin▁of▁sentence｜>{system}<｜User｜>{user}<｜Assistant｜></think>
         // Completed assistant turns are terminated with <｜end▁of▁sentence｜>.
         std::string system_content;
         for (const auto & msg : messages) {
@@ -385,48 +385,19 @@ std::string render_chat_template(
             result += "You MUST reason with the utmost depth and rigor, leaving absolutely nothing to chance: exhaustively decompose the problem into its most fundamental components, trace every causal chain to its root, and resolve the underlying cause rather than any surface symptom.\n";
             result += "Do not stop reasoning until you have independently verified the solution from multiple angles and are certain that no assumption remains unchecked and no error remains undiscovered.\n\n";
         }
-        if (!system_content.empty()) {
-            result += system_content;
-        }
         if (has_tools) {
-            if (!result.empty() && result != "<｜begin▁of▁sentence｜>") result += "\n\n";
-            result += "## Tools\n\n"
-                      "You have access to a set of tools to help answer the user question. "
-                      "You can invoke tools by writing a \"<｜DSML｜tool_calls>\" block like the following:\n\n"
-                      "<｜DSML｜tool_calls>\n"
-                      "<｜DSML｜invoke name=\"$TOOL_NAME\">\n"
-                      "<｜DSML｜parameter name=\"$PARAMETER_NAME\" string=\"true|false\">$PARAMETER_VALUE</｜DSML｜parameter>\n"
-                      "...\n"
-                      "</｜DSML｜invoke>\n"
-                      "<｜DSML｜invoke name=\"$TOOL_NAME2\">\n"
-                      "...\n"
-                      "</｜DSML｜invoke>\n"
-                      "</｜DSML｜tool_calls>\n\n"
-                      "String parameters should be specified as is and set `string=\"true\"`. "
-                      "For all other types (numbers, booleans, arrays, objects), pass the value in JSON format and set `string=\"false\"`.\n\n";
-            if (enable_thinking) {
-                result += "If thinking_mode is enabled (triggered by <think>), you MUST output your complete reasoning inside <think>...</think> BEFORE any tool calls or final response.\n\n"
-                          "Otherwise, output directly after </think> with tool calls or final response.\n\n";
-            }
-            result += "### Available Tool Schemas\n\n";
-            try {
-                const nlohmann::json tools = nlohmann::json::parse(tools_json);
-                if (tools.is_array()) {
-                    for (const auto & t : tools) {
-                        if (t.contains("function")) {
-                            result += t["function"].dump() + "\n";
-                        } else {
-                            result += t.dump() + "\n";
-                        }
-                    }
-                } else {
-                    result += tools.dump() + "\n";
-                }
-            } catch (const std::exception &) {
-                result += tools_json + "\n";
-            }
-            result += "\nYou MUST strictly follow the above defined tool name and parameter schemas to invoke tool calls.";
+            result += "### Tools\n\n"
+                      "You may call functions to assist with the user query. "
+                      "All available function signatures are listed below:\n";
+            append_available_tools(result, tools_json);
+            result += "For each function call, you MUST return a single JSON object "
+                      "within '<function_call>' and '</function_call>' tags, "
+                      "containing the function name and arguments, like this:\n"
+                      "<function_call>\n"
+                      "{\"name\": \"function_name\", \"arguments\": {\"param_name\": \"value\"}}\n"
+                      "</function_call>\n\n";
         }
+        result += system_content;
 
         bool pending_assistant = false;
         bool pending_tool_result = false;
