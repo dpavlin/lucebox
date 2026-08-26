@@ -1691,8 +1691,7 @@ static ggml_tensor * build_mla_attention(
     // D=512 flash prefill can rotate Q's 64-d tail inside the exact attention
     // kernel. This avoids materializing cont(nope), cont(tail), rope(tail),
     // and concat(nope, tail) while retaining the same F32 rounding boundary.
-    const bool fuse_q_rope = attention_impl != DeepSeek4AttentionImpl::Explicit &&
-                             n_tokens > 1 && head_dim == 512 && n_rot == 64;
+    const bool fuse_q_rope = false;
     if (!fuse_q_rope) {
         q = build_tail_rope_3d(ctx, q, rope_pos, n_rot, head_dim, n_head, n_tokens,
                                rope_freq, rope_scale, rope_ext, rope_attn,
@@ -2196,10 +2195,6 @@ static ggml_tensor * build_mla_attention(
                 ggml_flash_attn_ext_set_prec(result, GGML_PREC_F32);
                 ggml_flash_attn_ext_set_ds4_sparse(
                     result, raw_count, w.n_swa, 0, 32);
-                ggml_flash_attn_ext_set_ds4_inverse_rope(
-                    result, start, rope_freq, rope_scale, rope_ext,
-                    rope_attn, w.rope_yarn_beta_fast,
-                    w.rope_yarn_beta_slow, rope_n_ctx_orig, fuse_q_rope);
                 return result;
             };
 
@@ -2273,14 +2268,6 @@ static ggml_tensor * build_mla_attention(
             if (direct_indexer_topk) {
                 ggml_flash_attn_ext_set_ds4_indexer_topk(
                     context, indexer_topk);
-            }
-            if (attention_impl != DeepSeek4AttentionImpl::Explicit &&
-                head_dim == 512 && n_rot == 64) {
-                ggml_flash_attn_ext_set_ds4_inverse_rope(
-                    context, kv_start, rope_freq, rope_scale, rope_ext,
-                    rope_attn, w.rope_yarn_beta_fast,
-                    w.rope_yarn_beta_slow, rope_n_ctx_orig, fuse_q_rope);
-                inverse_rope_fused = true;
             }
         }
     } else {
