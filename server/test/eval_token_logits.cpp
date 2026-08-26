@@ -23,6 +23,28 @@ int main(int argc, char ** argv) {
         return 2;
     }
 
+    std::vector<std::string> patterns = {
+        "rfid501.go", "rfid5o1.go",
+        "rfid502.go", "rfid5o2.go",
+        "rfid510.go", "rfid5l0.go",
+        "item501.go", "item5o1.go",
+        "501", "5o1", "502", "5o2", "510", "5l0"
+    };
+
+    std::printf("\n=======================================================\n");
+    std::printf("TOKEN ENCODING COMPARISON TABLE\n");
+    std::printf("=======================================================\n");
+    for (const auto & p : patterns) {
+        std::vector<int32_t> ids = tokenizer.encode(p);
+        std::printf("%-15s -> tokens (%zu): [", p.c_str(), ids.size());
+        for (size_t i = 0; i < ids.size(); i++) {
+            std::string s = tokenizer.decode({ids[i]});
+            std::printf("%d ('%s')%s", ids[i], s.c_str(), i + 1 < ids.size() ? ", " : "");
+        }
+        std::printf("]\n");
+    }
+    std::printf("=======================================================\n\n");
+
     std::fprintf(stderr, "[probe] Initializing DeepSeek4Backend\n");
     DeepSeek4BackendConfig cfg;
     cfg.model_path = model_path;
@@ -100,26 +122,6 @@ int main(int argc, char ** argv) {
         for (size_t i = 0; i < res.tokens.size(); i++) {
             std::string t_str = tokenizer.decode({res.tokens[i]});
             std::printf("%d ('%s')%s", res.tokens[i], t_str.c_str(), i + 1 < res.tokens.size() ? ", " : "");
-        }
-        std::printf("]\n");
-    }
-
-    std::vector<std::string> patterns = {
-        "rfid501.go", "rfid5o1.go",
-        "rfid502.go", "rfid5o2.go",
-        "rfid510.go", "rfid5l0.go",
-        "item501.go", "item5o1.go"
-    };
-
-    std::printf("\n=======================================================\n");
-    std::printf("TOKEN ENCODING COMPARISON TABLE\n");
-    std::printf("=======================================================\n");
-    for (const auto & p : patterns) {
-        std::vector<int32_t> ids = tokenizer.encode(p);
-        std::printf("%-15s -> tokens (%zu): [", p.c_str(), ids.size());
-        for (size_t i = 0; i < ids.size(); i++) {
-            std::string s = tokenizer.decode({ids[i]});
-            std::printf("%d ('%s')%s", ids[i], s.c_str(), i + 1 < ids.size() ? ", " : "");
         }
         std::printf("]\n");
     }
